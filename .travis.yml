@@ -1,0 +1,81 @@
+language: cpp
+
+env:
+  global:
+    - CACHE_DIR=${TRAVIS_HOME}/_cache
+    - BOOST_URL='https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.tar.bz2'
+    - BOOST_ROOT=${CACHE_DIR}/boost_1_70_0
+    - >-
+      CMAKE_EXTRA_ARGS="
+      -DCMAKE_VERBOSE_MAKEFILE=ON
+      -DBoost_DIR=${BOOST_ROOT}/_INSTALLED_/lib/cmake/Boost-1.70.0
+      -DBoost_ARCHITECTURE=-x64
+      -DBoost_NO_SYSTEM_PATHS=ON"
+    - CMAKE_ROOT=${CACHE_DIR}/cmake
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - software-properties-common
+      - wget
+      - python-software-properties
+      - libstdc++6
+      - binutils-gold
+      - make
+      - ninja-build
+      - g++-8
+  homebrew:
+    packages:
+      - bash
+      - ninja
+    update: true
+
+matrix:
+  include:
+    - &linux
+      os: linux
+      dist: xenial
+      compiler: gcc
+      name: linux, debug
+      before_script:
+        - export BLD_CONFIG=Debug
+      env:
+        - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
+    - &macos
+      os: osx
+      osx_image: xcode10.2
+      name: macos, debug
+      before_script:
+        - export BLD_CONFIG=Debug
+    - <<: *macos
+      name: macos, release
+      before_script:
+        - export BLD_CONFIG=Release
+
+cache:
+  timeout: 900
+  directories:
+    - $CACHE_DIR
+
+before_install:
+  - export NUM_PROCESSORS=$(nproc)
+  - if [ "${CMAKE_ADD}" != "" ] ; then export CMAKE_EXTRA_ARGS="${CMAKE_EXTRA_ARGS} ${CMAKE_ADD}"; fi
+  - if [ "${MATRIX_EVAL}" != "" ] ; then eval "${MATRIX_EVAL}"; fi
+
+install:
+  - ci/install-cmake.sh 3.14.0
+  - if [ $(uname) = "Darwin" ] ; then export PATH="${CMAKE_ROOT}/CMake.app/Contents/bin:${PATH}"; fi
+  - if [ $(uname) = "Linux" ] ; then export PATH="${CMAKE_ROOT}/bin:${PATH}"; fi
+  - travis_wait 50 ci/install-boost.sh
+
+script:
+  - mkdir -p build && cd build
+  - cmake -G Ninja ${CMAKE_EXTRA_ARGS} -DCMAKE_BUILD_TYPE=${BLD_CONFIG} ..
+  - cmake --build . --parallel ${NUM_PROCESSORS} --verbose
+  - ./asio_timer_test
+
+notifications:
+  email: false
+
