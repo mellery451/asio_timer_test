@@ -19,7 +19,7 @@ add_executable (asio_timer_test asio_timer_test.cpp)
 target_link_libraries (asio_timer_test
   Boost::boost
   Boost::math)
-target_compile_definitions (asio_timer_test BOOST_ASIO_DISABLE_KQUEUE)
+target_compile_definitions (asio_timer_test PRIVATE BOOST_ASIO_DISABLE_KQUEUE)
 
 if (NOT MSVC)
   set (THREADS_PREFER_PTHREAD_FLAG ON)
