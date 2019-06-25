@@ -11,30 +11,49 @@
 #include <thread>
 #include <vector>
 
+template <class Clock>
+void
+display_precision()
+{
+    typedef std::chrono::duration<double, std::nano> NS;
+    NS ns = typename Clock::duration(1);
+    std::cout << ns.count() << " ns\n";
+}
+
 int main(int, char**) {
     using namespace std::chrono;
     using namespace std::chrono_literals;
 
     size_t const count = 100;
+    auto interval = 100ms;
+    //auto interval = 50ms;
+    //size_t const count = 50;
+    //auto interval = 200ms;
     boost::asio::io_service ios;
     boost::optional<boost::asio::io_service::work> work {ios};
     std::thread worker { [&]{ ios.run(); } };
-    boost::asio::basic_waitable_timer<steady_clock> timer {ios};
-    std::vector<steady_clock::duration::rep> elapsed_times;
+    //boost::asio::basic_waitable_timer<steady_clock> timer {ios};
+    //std::vector<steady_clock::duration::rep> elapsed_times;
+    boost::asio::basic_waitable_timer<system_clock> timer {ios};
+    std::vector<system_clock::duration::rep> elapsed_times;
     elapsed_times.reserve (count);
     std::mutex gate;
 
+    std::cout << "========================================\n";
+    display_precision<std::chrono::high_resolution_clock>();
+    display_precision<std::chrono::system_clock>();
+    display_precision<std::chrono::steady_clock>();
     std::cout << "========================================\n";
     std::cout << "Starting timer measurement...\n";
     for (auto samples = count; samples != 0 ; --samples)
     {
         auto const start {steady_clock::now()};
-        timer.expires_after (100ms);
+        timer.expires_after (interval);
         gate.lock ();
         timer.async_wait ( [&] (boost::system::error_code const& ec) {
             if (ec)
                 std::cerr <<
-                    "!! got an ec in timer cb: " << ec.message() << std::endl;
+                    "!! got an ec in timer cb: " << ec.message() << "\n";
             auto const end {steady_clock::now()};
             auto const elapsed {end - start};
             elapsed_times.emplace_back (
